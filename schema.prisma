@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Draw {
+  id            String   @id
+  lottery       String
+  contest       Int
+  date          DateTime
+  nextDate      DateTime?
+  numbers       Json
+  secondNumbers Json?
+  extra         String?
+  prizeEstimate Float?
+  payouts       Json?
+  source        String
+  fetchedAt     DateTime @default(now())
+
+  @@unique([lottery, contest])
+  @@index([lottery, contest(sort: Desc)])
+}
+
+model SyncRun {
+  id        String   @id @default(cuid())
+  lottery   String
+  status    String
+  details   String?
+  count     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([lottery, createdAt(sort: Desc)])
+}
