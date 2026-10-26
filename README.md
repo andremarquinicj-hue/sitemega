@@ -1,0 +1,112 @@
+# LottoMind AI — Plataforma Inteligente de Análise Estatística de Loterias
+
+**Projeto executável em Next.js 15 + TypeScript + Tailwind + Recharts + PostgreSQL/Prisma.** Interface escura responsiva; resultados obtidos da API pública da Caixa; oito loterias; análises descritivas; gerador condicionado a orçamento; Monte Carlo no navegador; backtesting walk-forward; histórico local de apostas.
+
+> **Importante:** este repositório é um **MVP funcional com limitações explícitas**, e não um motor capaz de prever sorteios. Os modelos supervisionados de IA (Random Forest, Gradient Boosting etc.) e as garantias de fechamentos reduzidos não foram implementados e não são apresentados como prontos. A plataforma não vende apostas, não tem vínculo com a Caixa e não inventa dados históricos.
+
+## 1. Pré-requisitos
+
+- Node.js 20.11 ou superior (recomendado Node.js 22 LTS), npm.
+- Um banco PostgreSQL (Neon, Supabase, PostgreSQL próprio) para histórico persistente e cron. **Sem banco**, a interface, estatísticas dos concursos acessíveis, gerador, backtesting amostral e simulações ainda funcionam usando consulta direta à Caixa; o histórico completo não fica retido no servidor.
+- Conexão de rede de seu servidor para `https://servicebus2.caixa.gov.br`.
+
+## 2. Instalação local
+
+```bash
+npm install
+cp .env.example .env
+```
+
+Edite `.env` com `DATABASE_URL` do PostgreSQL (caso disponível) e um `CRON_SECRET` aleatório de pelo menos 16 caracteres. Em Windows, crie `.env` copiando o arquivo `.env.example` pelo Explorador.
+
+Com PostgreSQL configurado:
+
+```bash
+npx prisma generate
+npm run db:migrate
+npm run dev
+```
+
+Sem banco, deixe `DATABASE_URL` **removida ou vazia**, execute `npx prisma generate` e `npm run dev`. Acesse `http://localhost:3000`.
+
+### Migrar banco pela primeira vez
+
+Use `npm run db:migrate` para aplicar a migração SQL versionada em `prisma/migrations/`. `npm run db:dev` é destinado a alterações locais no schema, não ao deploy em produção.
+
+## 3. Importar resultados históricos reais
+
+A interface busca automaticamente até 30 concursos recentes por modalidade, além do concurso mais recente, quando a base persistida possui poucos registros. Para criar uma série histórica maior, utilize **no seu computador** com o banco já configurado:
+
+```bash
+npm run import:history -- --game=megasena --limit=500
+npm run import:history -- --game=quina --limit=500
+npm run import:history -- --limit=200
+```
+
+O último comando inclui as 8 modalidades, buscando os 200 concursos mais recentes de cada uma. Para séries completas, repita com `--limit=10000` e acompanhe logs e possíveis bloqueios da fonte; o processo é idempotente (`upsert`) e pode ser retomado. Importação de milhares de concursos deve ser feita em ambiente de longa duração, **não em uma Function da Vercel**. Cada retorno é validado e registrado com número do concurso, data, dezenas e fonte. Erros de consulta são contabilizados e nunca substituídos por números sintéticos.
+
+## 4. Publicar no GitHub e na Vercel
+
+1. Extraia este ZIP. Coloque o conteúdo da pasta `lotto-mind-ai/` na **raiz** de um novo repositório GitHub (se houver uma pasta extra no topo, configure o Root Directory na Vercel).
+2. Crie um banco PostgreSQL no **Neon** ou **Supabase** e obtenha a URL de conexão PostgreSQL que o Prisma suporta, com SSL quando exigido.
+3. Na Vercel, clique em **Add New → Project**, importe o repositório e mantenha o framework **Next.js** e o Build Command padrão `npm run build`.
+4. Em **Settings → Environment Variables**, cadastre `DATABASE_URL`, `CRON_SECRET` e, opcionalmente, `CAIXA_API_BASE`. **Nunca publique `.env` ou senhas no GitHub**.
+5. Aplique as migrações **antes de usar a sincronização** com `npm run db:migrate` de sua máquina (conectada ao banco de produção). Alternativamente, configure um passo controlado de migração em CI; não dependa de migrações automáticas em requisições de usuário.
+6. Faça deploy. Confirme `https://SEU-SITE.vercel.app/api/health` e abra as oito modalidades. Valide disponibilidade real da Caixa nos logs de funções.
+7. O arquivo `vercel.json` agenda `GET /api/sync` **uma vez por dia**, às **09:17 UTC**. A Vercel envia `Authorization: Bearer $CRON_SECRET`; confirme `CRON_SECRET` no projeto. A Function sincroniza último concurso e, quando necessário, alguns concursos recentes. Para um grande histórico inicial, use o comando CLI acima.
+
+**Cron no plano Hobby:** a Vercel atualmente restringe cron a no máximo uma execução diária e não garante minuto exato. O agendamento fornecido respeita esse limite; confira [documentação oficial](https://vercel.com/docs/cron-jobs/usage-and-pricing).
+
+## 5. Fonte dos dados e confiabilidade
+
+- Origem: `https://servicebus2.caixa.gov.br/portaldeloterias/api/{modalidade}` (recente) e `.../{modalidade}/{concurso}` (histórico).
+- Esse endpoint é utilizado pelo portal Caixa, mas **não constitui uma API pública formalmente documentada com SLA**; funcionamento em produção e permissões de acesso precisam ser verificados após deploy. Pode haver erros 403/429/500 e limitações regionais.
+- O backend aplica validação, timeout, retry, cache HTTP pelo `fetch` do Next.js (revalidação em 15 minutos) e armazenamento PostgreSQL, se disponível.
+- Na falha da Caixa, `GET /api/results` pode devolver o último resultado salvo com `status: "cached"`; na falta de fonte e cache, `status: "unavailable"` e `draws: []`.
+- As apostas **não** são enviadas à Caixa e nunca são consideradas realizadas automaticamente.
+
+## 6. APIs implementadas
+
+| Rota | Método | Função |
+|---|---|---|
+| `/api/health` | GET | Disponibilidade HTTP do aplicativo |
+| `/api/results?lottery=megasena&limit=200` | GET | Resultados reais mais recentes e histórico disponível |
+| `/api/generate` | POST | Gera apostas e valida orçamento, restrições e estratégia |
+| `/api/backtest` | POST | Backtesting walk-forward com comparação aleatória |
+| `/api/sync` | GET/POST | Sincroniza dados; **exige** `Authorization: Bearer <CRON_SECRET>` e banco |
+
+Corpo mínimo do gerador: `{"lottery":"megasena","strategy":"diversity","count":5,"pick":6,"budget":50,"required":[],"excluded":[],"extra":""}`.
+Corpo do backtest: `{"lottery":"megasena","strategy":"frequency","count":50}`.
+
+## 7. Funcionalidades efetivas
+
+| Área | Disponibilidade |
+|---|---|
+| Oito modalidades com preços/regras de apostas simples e ampliadas de dezenas | Implementado; Super Sete apenas 1 dígito por coluna |
+| Resultados da Caixa, validação, cache e migração de banco | Implementado; depende da disponibilidade da fonte e das variáveis de ambiente |
+| Frequências, desvio padronizado, atrasos, pares, paridade e heatmap | Implementado para concursos consultados; frequência do Super Sete agregada |
+| Gerador aleatório, equilibrado, frequências, atrasos, diversificação, Fibonacci, numerologia | Implementado; sem afirmação de previsão |
+| Fechamento matemático | **Somente fechamento completo** de grupos pequenos, com garantia estritamente condicional |
+| Orçamento/custos e cálculo combinatório | Implementado com valores de referência conferidos em 2026 (não dinâmicos) |
+| Simulação 10 mil / 100 mil / 1 milhão | Implementado no Web Worker, com comparação matemática de referência |
+| Backtesting temporal | Implementado; exige concursos disponíveis, sem data leakage, comparativo com um jogo aleatório por concurso |
+| Salvar jogos, marcar compra, CSV, impressão/PDF do navegador | Implementado em `localStorage`; PDF via **Imprimir → Salvar como PDF** |
+| Autenticação, sincronização de jogos por conta, equipes Timemania validadas | **Não implementado** |
+| Machine learning treinado e validado, Random Forest ou rede neural | **Não implementado** (não se vende estimativa falsa como IA) |
+| Cobertura de fechamento reduzido e análise de significância corrigida | **Não implementado** |
+
+## 8. Testes
+
+```bash
+npm run lint   # checagem rigorosa de tipos TypeScript
+npm test       # Vitest: matemática, validação de dados, geração, API e walk-forward
+npm run build  # verificação de build de produção
+```
+
+**Limitação da entrega:** o ambiente em que esta versão foi preparada não conseguiu acessar o registro npm; portanto, `npm install`, `npm test` e `npm run build` **não puderam ser executados com dependências instaladas**. Foram executados um type-check isolado dos módulos matemáticos e testes de execução Node do motor compilado; veja `docs/PLANO_TESTES.md` para os resultados efetivamente observados. Execute os três comandos acima após `npm install` antes de publicar; falhas encontradas no seu ambiente devem ser corrigidas, não presumidas como aprovadas.
+
+## 9. Alertas éticos e financeiros
+
+Jogue apenas se for maior de 18 anos. Defina um orçamento de entretenimento sem comprometer necessidades. A frequência, atraso e numerologia não mudam a distribuição teórica de um sorteio independente. A diversificação pode evitar jogos repetidos e ampliar a cobertura combinatória, mas **não cria números individuais mais prováveis**.
+
+Consulte `docs/MANUAL.md`, `docs/ARQUITETURA.md`, `docs/PLANO_TESTES.md` e `docs/LIMITACOES.md`.

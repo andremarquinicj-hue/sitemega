@@ -1,0 +1,1 @@
+export default function Loading(){return <main className="min-h-screen bg-[#080f20] text-indigo-200 flex items-center justify-center"><div className="animate-pulse text-sm tracking-wide">Carregando LottoMind AI...</div></main>}
