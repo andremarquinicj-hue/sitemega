@@ -119,3 +119,15 @@ npm run build  # verificação de build de produção
 Jogue apenas se for maior de 18 anos. Defina um orçamento de entretenimento sem comprometer necessidades. A frequência, atraso e numerologia não mudam a distribuição teórica de um sorteio independente. A diversificação pode evitar jogos repetidos e ampliar a cobertura combinatória, mas **não cria números individuais mais prováveis**.
 
 Consulte `docs/MANUAL.md`, `docs/ARQUITETURA.md`, `docs/PLANO_TESTES.md` e `docs/LIMITACOES.md`.
+
+## Consulta com fallback quando a Caixa retorna HTTP 403
+
+A API interna pública da Caixa pode bloquear chamadas de servidores Vercel (por exemplo HTTP 403). A consulta implementada em `lib/caixa.ts` tenta, **nesta ordem**:
+
+1. `servicebus2.caixa.gov.br` — fonte primária, payload oficial.
+2. `loteriascaixa-api.herokuapp.com` — API comunitária de resultados públicos, com seu próprio histórico e atualizações.
+3. Para o último concurso da Mega-Sena, se ambas falharem: `resultadomega.com.br/api/ultimo.json`. Para os resultados históricos da Mega-Sena, o endpoint compacto `/api/concursos.json` reduz chamadas externas.
+
+O sistema valida modalidade, concurso, data e dezenas antes de apresentar os resultados. A procedência é exibida no dashboard. **Fontes alternativas não são oficiais, podem estar atrasadas ou indisponíveis e não dispensam conferência com a Caixa.** No histórico compacto da Mega-Sena, o prêmio por faixa é desconhecido; não se inventam valores. A fonte de resultados oficial é pública, mas não possui documentação de estabilidade nem SLA.
+
+A publicação não requer variáveis adicionais para tentar o fallback. A persistência histórica e o cron continuam exigindo `DATABASE_URL` e `CRON_SECRET`. A compatibilidade do segundo sorteio da Dupla Sena depende de o provedor alternativo enviar explicitamente as duas dezenas sorteadas; sem elas, a resposta é rejeitada.

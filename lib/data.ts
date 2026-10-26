@@ -1,7 +1,11 @@
-import {fetchCaixa} from './caixa';
+import {fetchCaixa,fetchMegaHistory} from './caixa';
 import {db,readDb,upsertDraw} from './db';
 import {Draw,LotteryKey} from './rules';
 async function fetchRecent(lottery:LotteryKey,last:number,count:number):Promise<Draw[]>{
+  if(lottery==='megasena'){
+    try{const items=await fetchMegaHistory(count+20);return items.filter(x=>x.contest<=last).slice(0,count)}
+    catch(error){console.warn('Histórico Mega alternativo indisponível',error)}
+  }
   const ids=Array.from({length:Math.min(count,last)},(_,i)=>last-i).filter(x=>x>0);
   const results:Draw[]=[];
   for(let start=0;start<ids.length;start+=5){
@@ -22,11 +26,13 @@ export async function getResults(lottery:LotteryKey,limit=60):Promise<{draws:Dra
     if(cached.length<Math.min(limit,20)){
       // Modo sem DB ou instalação recém-iniciada: busca recente em lotes, sem inventar resultados.
       const remote=await fetchRecent(lottery,latest.contest,Math.min(limit,30));
-      const map=new Map(draws.concat(remote).map(d=>[d.contest,d]));
+      // Preserve resultados detalhados sobre históricos compactos sem premiações.
+      const map=new Map(remote.concat(draws).map(d=>[d.contest,d]));
       draws=[...map.values()].sort((a,b)=>b.contest-a.contest);
       if(db()) for(const d of remote)await upsertDraw(d).catch(()=>{});
     }
   }
   draws.sort((a,b)=>b.contest-a.contest);
-  return {draws:draws.slice(0,limit),status:latest?'online':draws.length?'cached':'unavailable',error:error||dbError||undefined,persistent:!!db()&&!dbError,lastSync:draws.length?draws[0].fetchedAt:undefined};
+  const isOlder=!!latest&&draws.length>0&&latest.contest<draws[0].contest;
+  return {draws:draws.slice(0,limit),status:latest&&!isOlder?'online':draws.length?'cached':'unavailable',error:error||dbError||(isOlder?'Fonte alternativa atrás do último concurso armazenado':undefined),persistent:!!db()&&!dbError,lastSync:draws.length?draws[0].fetchedAt:undefined};
 }
