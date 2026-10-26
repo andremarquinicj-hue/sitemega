@@ -10,7 +10,7 @@ async function handle(req:NextRequest){
   const param=req.nextUrl.searchParams.get('lottery');
   if(param&&!isLottery(param))return NextResponse.json({error:'Modalidade inválida'},{status:400});
   const games=param?[param as typeof LOTTERY_KEYS[number]]:[...LOTTERY_KEYS];
-  const output=[];
+  const output: {lottery: typeof LOTTERY_KEYS[number]; saved: number; failures: number; error?: string}[] = [];
   for(const game of games){let saved=0,failures=0,err='';
     try{
       const latest=await fetchCaixa(game);

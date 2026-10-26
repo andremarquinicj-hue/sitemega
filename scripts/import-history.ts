@@ -1,4 +1,4 @@
-import {LOTTERY_KEYS,isLottery} from '../lib/rules';
+import {LOTTERY_KEYS,isLottery,type LotteryKey} from '../lib/rules';
 import {fetchCaixa} from '../lib/caixa';import {db,upsertDraw,logSync} from '../lib/db';
 async function main(){
   if(!db())throw Error('Configure DATABASE_URL antes de importar o histórico.');
@@ -6,7 +6,10 @@ async function main(){
   const rawLimit=Number(process.argv.find(x=>x.startsWith('--limit='))?.split('=')[1]||200);
   if(!Number.isInteger(rawLimit)||rawLimit<1||rawLimit>10000)throw Error('Use --limit=1..10000');
   if(requested&&!isLottery(requested))throw Error('Modalidade inválida');
-  const games=requested?[requested]:LOTTERY_KEYS;
+  // Preserve o tipo da modalidade em ambas as ramificações: evita string genérica no fetchCaixa.
+  const games: LotteryKey[] = requested && isLottery(requested)
+    ? [requested]
+    : [...LOTTERY_KEYS];
   for(const game of games){const latest=await fetchCaixa(game);let count=0,fail=0;
     for(let high=latest.contest;high>0&&count<rawLimit;high-=4){
       const ids=Array.from({length:4},(_,i)=>high-i).filter(id=>id>0&&latest.contest-id<rawLimit);

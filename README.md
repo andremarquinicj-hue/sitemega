@@ -4,6 +4,15 @@
 
 > **Importante:** este repositório é um **MVP funcional com limitações explícitas**, e não um motor capaz de prever sorteios. Os modelos supervisionados de IA (Random Forest, Gradient Boosting etc.) e as garantias de fechamentos reduzidos não foram implementados e não são apresentados como prontos. A plataforma não vende apostas, não tem vínculo com a Caixa e não inventa dados históricos.
 
+> **Atualização 26/10/2026 — deploy Vercel:** foi corrigida a sintaxe de `prisma/schema.prisma` que provocava `P1012` no `prisma generate`. Consulte `docs/CORRECAO_VERCEL.md` para atualizar o repositório existente. O build completo ainda depende de validação no ambiente conectado à Vercel.
+
+
+## Atualização de implantação — 26/10/2026
+
+Esta revisão corrige o formato do Prisma (`prisma/schema.prisma`), a tipagem da importação de histórico (`scripts/import-history.ts`) e o tipo explícito do retorno de sincronização (`app/api/sync/route.ts`). Para substituir os arquivos no repositório `sitemega`, siga `ATUALIZAR_GITHUB.md`. O ZIP atualizado contém os arquivos diretamente na raiz, sem subpasta extra.
+
+**Validação adicional:** os 24 arquivos TS/TSX passaram na checagem de sintaxe, o núcleo e o importador passaram por checagem TypeScript rigorosa com declarações auxiliares de tipos, e 56 cenários de geração nas oito modalidades passaram em execução isolada. A verificação de tipagem completa com bibliotecas reais e o `next build` ainda não foram executados localmente, pois o registro npm ficou indisponível; a validação final do deploy permanece pendente.
+
 ## 1. Pré-requisitos
 
 - Node.js 20.11 ou superior (recomendado Node.js 22 LTS), npm.
