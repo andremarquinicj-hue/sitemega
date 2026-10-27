@@ -1,3 +1,19 @@
+# LottoMind AI 1.2 — Fortuna Edition (mobile e conferência de prêmios)
+
+Esta atualização inclui **uma identidade verde-esmeralda e dourada**, melhor leitura no celular, navegação inferior móvel, manifesto para adicionar o site à tela inicial, um novo menu **Conferir prêmios**, indicadores de resultados pós-sorteio e conferência automática dos conjuntos salvos cujo concurso associado já foi divulgado.
+
+O **conferidor consulta o concurso específico**, calcula acertos e quantidades de prêmios por faixa (inclusive apostas múltiplas nas modalidades compatíveis), e apresenta valores em reais **somente quando o retorno de dados fornece rateios válidos**. Se a Caixa ou a fonte alternativa não estiver acessível, permite digitar o resultado manualmente para conferir os acertos, sem inventar valores pagos. O LottoMind AI não compra nem autentica bilhetes e não garante recebimento.
+
+**No celular:** abra o link da Vercel pelo Chrome ou Safari; há menu lateral e barra inferior de atalhos. Também é possível usar “Adicionar à tela inicial” no navegador compatível. O site continua dependente de conexão para carregar resultados; o manifesto não representa aplicativo nativo nem garante funcionamento offline. Jogos salvos ficam no `localStorage` do navegador: não são sincronizados entre computador e telefone. Para salvar em vários aparelhos será necessária autenticação e um backend de usuários.
+
+**Após cada concurso:** quando a fonte atualiza, o painel compara a repetição de dezenas e a distribuição par/ímpar com seus valores esperados sob sorteios aleatórios (particularmente útil para a Lotofácil). Não transforma esses padrões em aumento de chances. Jogos salvos como “apostados” serão destacados somente quando o número do concurso salvo corresponder ao resultado disponível. Confirme sempre o concurso impresso no bilhete.
+
+Para implementação e testes veja [docs/CONFERENCIA_E_VISUAL_1_2.md](docs/CONFERENCIA_E_VISUAL_1_2.md). Para atualizar o GitHub, consulte [ATUALIZAR_GITHUB.md](ATUALIZAR_GITHUB.md).
+
+---
+
+> **Atualização 1.1 — Cobertura combinatória (27/10/2026):** melhorada a estratégia Máxima diversidade, com focos Sena/Quadra/Quina para Mega-Sena simples, auditoria de cobertura e testes (`tests/coverage.test.ts`). Veja [docs/COBERTURA_COMBINATORIA.md](docs/COBERTURA_COMBINATORIA.md). O build completo deve ser validado na Vercel; as probabilidades não indicam previsão de dezenas.
+
 # LottoMind AI — Plataforma Inteligente de Análise Estatística de Loterias
 
 **Projeto executável em Next.js 15 + TypeScript + Tailwind + Recharts + PostgreSQL/Prisma.** Interface escura responsiva; resultados obtidos da API pública da Caixa; oito loterias; análises descritivas; gerador condicionado a orçamento; Monte Carlo no navegador; backtesting walk-forward; histórico local de apostas.

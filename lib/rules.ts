@@ -15,13 +15,14 @@ export const isLottery = (s: string): s is LotteryKey => LOTTERY_KEYS.includes(s
 export const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 export type Draw = { lottery: LotteryKey; contest:number; date:string; nextDate:string|null; numbers:number[]; secondNumbers:number[]|null; extra:string|null; prizeEstimate:number|null; payouts: {tier:number;description:string;winners:number;value:number}[]; fetchedAt:string; source:string; };
 export type Ticket = { numbers: number[]; extra?:string; columns?:number[][] };
+export type DiversityGoal = 'sena'|'quadra'|'quina';
 export type Strategy = 'random'|'balanced'|'frequency'|'delay'|'diversity'|'fibonacci'|'numerology'|'closure';
 export const STRATEGIES: {id:Strategy;label:string;category:string;description:string}[] = [
 {id:'random',label:'Aleatório uniforme',category:'Estatístico',description:'Todos os conjuntos válidos possuem a mesma chance.'},
 {id:'balanced',label:'Distribuição equilibrada',category:'Heurística',description:'Filtra somas e paridade, sem melhorar probabilidade individual.'},
 {id:'frequency',label:'Frequências',category:'Heurística',description:'Prioriza frequência histórica, sem capacidade preditiva demonstrada.'},
 {id:'delay',label:'Atrasos',category:'Heurística',description:'Prioriza dezenas ausentes há mais tempo; atrasos não aumentam chances.'},
-{id:'diversity',label:'Máxima diversidade',category:'Otimização',description:'Reduz sobreposição entre apostas do conjunto.'},
+{id:'diversity',label:'Máxima diversidade',category:'Otimização',description:'Otimiza a cobertura e evita repetições desnecessárias. Aposta individual não fica mais provável.'},
 {id:'fibonacci',label:'Fibonacci',category:'Experimental',description:'Padrão matemático recreativo, sem evidência preditiva.'},
 {id:'numerology',label:'Numerologia',category:'Recreativo',description:'Reduções pitagóricas como filtro lúdico.'},
 {id:'closure',label:'Fechamento completo',category:'Combinatório',description:'Todas as combinações de um conjunto compacto; garantia apenas se o sorteio estiver contido nesse conjunto.'}

@@ -1,4 +1,4 @@
-import {Draw, LotteryRule, RULES, Strategy, Ticket, months, LotteryKey} from './rules';
+import {Draw, LotteryRule, RULES, Strategy, DiversityGoal, Ticket, months, LotteryKey} from './rules';
 export function choose(n:number,k:number):number {
   if (!Number.isInteger(n)||!Number.isInteger(k)||k<0||k>n) return 0;
   let r=1; for(let j=1;j<=Math.min(k,n-k);j++) r=r*(n-j+1)/j; return Math.round(r);
@@ -71,8 +71,141 @@ export function uniformSample(items:number[],n:number,rng:()=>number=Math.random
   const a=items.slice();for(let i=0;i<n;i++){const j=i+randomIndex(a.length-i,rng);[a[i],a[j]]=[a[j],a[i]];}return a.slice(0,n).sort((x,y)=>x-y);
 }
 export function seeded(seed:number):()=>number {let s=seed|0;return ()=>{s^=s<<13;s^=s>>>17;s^=s<<5;return (s>>>0)/4294967296;};}
-export type GenerateArgs={rule:LotteryRule;count:number;pick:number;budget:number;strategy:Strategy; history:Draw[]; required?:number[];excluded?:number[];extra?:string;seed?:number;poolSize?:number};
-export function generate(args:GenerateArgs):{tickets:Ticket[];spent:number;remainder:number;note:string}{
+/** Auditoria combinatória: não utiliza resultados passados nem estima dezenas futuras. */
+export type CoverageReport={
+  uniqueNumbers:number;
+  totalSelections:number;
+  repeatedSelections:number;
+  uniqueTickets:number;
+  maxPairOverlap:number;
+  pairsSharingTwoOrMore:number;
+  pairsSharingFourOrMore:number;
+  distinctQuartets:number|null;
+  distinctQuintets:number|null;
+  distinctSextets:number|null;
+  jackpotChance:number|null;
+  atLeastQuadraChance:number|null;
+  atLeastQuinaChance:number|null;
+  probabilityNote:string;
+};
+function subsets(values:number[],size:number,visit:(combination:number[])=>void){
+  const out:number[]=[];
+  const walk=(start:number)=>{
+    if(out.length===size){visit(out);return;}
+    for(let k=start;k<=values.length-(size-out.length);k++){
+      out.push(values[k]);walk(k+1);out.pop();
+    }
+  };walk(0);
+}
+/** Para Mega-Sena 6/60, pode calcular as chances EXATAS de ao menos uma faixa
+ * quando eventos de bilhetes são disjuntos (no máximo 1 número comum para quadra,
+ * no máximo 3 números comuns para quina). Caso contrário, retorna null.
+ */
+export function coverageAudit(rule:LotteryRule,tickets:Ticket[]):CoverageReport{
+  const isColumns=rule.extra==='columns';
+  const all=tickets.flatMap(t=>t.numbers);
+  const uniqueNumbers=isColumns?0:new Set(all).size;
+  const keys=tickets.map(t=>isColumns?JSON.stringify(t.columns):sortedUnique(t.numbers).join(','));
+  const overlaps:number[]=[];
+  for(let i=0;i<tickets.length;i++)for(let j=0;j<i;j++){
+    if(isColumns){overlaps.push((tickets[i].columns||[]).reduce((a,c,k)=>a+(c[0]===(tickets[j].columns||[])[k]?.[0]?1:0),0));}
+    else{const prev=new Set(tickets[j].numbers);overlaps.push(tickets[i].numbers.filter(n=>prev.has(n)).length);}
+  }
+  const supported=rule.id==='megasena'&&tickets.every(t=>t.numbers.length===6);
+  let distinctQuartets:number|null=null,distinctQuintets:number|null=null,distinctSextets:number|null=null;
+  let jackpotChance:number|null=null,atLeastQuadraChance:number|null=null,atLeastQuinaChance:number|null=null;
+  if(supported){
+    const sets=[new Set<string>(),new Set<string>(),new Set<string>()];
+    for(const ticket of tickets){
+      for(const [index,size] of [4,5,6].entries()){
+        subsets(sortedUnique(ticket.numbers),size,part=>sets[index].add(part.join(',')));
+      }
+    }
+    [distinctQuartets,distinctQuintets,distinctSextets]=sets.map(x=>x.size);
+    const total=choose(60,6);
+    jackpotChance=distinctSextets/total;
+    const probability=(minimum:number)=>Array.from({length:7-minimum},(_,i)=>minimum+i).reduce((sum,h)=>sum+choose(6,h)*choose(54,6-h),0)/total;
+    if(overlaps.every(k=>k<=1))atLeastQuadraChance=tickets.length*probability(4);
+    if(overlaps.every(k=>k<=3))atLeastQuinaChance=tickets.length*probability(5);
+  }
+  return {
+    uniqueNumbers,totalSelections:all.length,repeatedSelections:isColumns?0:all.length-uniqueNumbers,
+    uniqueTickets:new Set(keys).size,maxPairOverlap:Math.max(0,...overlaps),
+    pairsSharingTwoOrMore:overlaps.filter(x=>x>=2).length,pairsSharingFourOrMore:overlaps.filter(x=>x>=4).length,
+    distinctQuartets,distinctQuintets,distinctSextets,jackpotChance,atLeastQuadraChance,atLeastQuinaChance,
+    probabilityNote:supported?'Probabilidades de quadra+/quina+ somente são exibidas quando os eventos de premiação dos jogos não se sobrepõem. Caso contrário, é necessária inclusão-exclusão; não usamos aproximação indevida.':'Auditoria de cobertura específica para Mega-Sena simples; demais modalidades exigem regras de eventos próprias.'
+  };
+}
+
+/** Construção balanceada sem repetições enquanto há dezenas livres.
+ * Em até 10 jogos simples da Mega-Sena sem filtros (6*10 <= 60), obtém
+ * jogos sem nenhuma dezena repetida. Para maiores quantidades, minimiza
+ * sobreposição e excesso de frequência respeitando filtros obrigatórios.
+ */
+function makeDiverseTickets(args:{rule:LotteryRule;pick:number;limit:number;required:number[];pool:number[];extra?:string;goal:DiversityGoal;rng:()=>number}):Ticket[]{
+  const {rule,pick,limit,required,pool,extra,goal,rng}=args;
+  const selected:Ticket[]=[];
+  const used=new Set<string>();
+  const appearance=new Map<number,number>();
+  const freeCount=pick-required.length;
+  if(choose(pool.length,freeCount)<limit)throw Error('Filtros deixam menos combinações distintas que o total de jogos solicitado.');
+  for(let iteration=0;iteration<limit;iteration++){
+    let best:Ticket|null=null,bestQuality=Infinity;
+    const tries=pick>=35?8:pick>=15?14:32;
+    const priorSets=selected.map(t=>new Set(t.numbers));
+    for(let attempt=0;attempt<tries;attempt++){
+      const chosen=required.slice();
+      const available=pool.slice();
+      while(chosen.length<pick){
+        let min=Infinity;
+        const choice:number[]=[];
+        for(const n of available){
+          const seen=appearance.get(n)||0;
+          const after=chosen.includes(n)?Infinity:seen*1000;
+          if(after===Infinity)continue;
+          const overlapIncrement=goal==='sena'?0:priorSets.reduce((penalty,set)=>{
+            if(!set.has(n))return penalty;
+            const now=chosen.reduce((count,x)=>count+(set.has(x)?1:0),0);
+            const boundary=goal==='quadra'?1:3;
+            const before=Math.max(0,now-boundary);
+            const after=Math.max(0,now+1-boundary);
+            return penalty+(after*after-before*before)*300+1;
+          },0);
+          const score=after+overlapIncrement;
+          if(score<min-1e-9){min=score;choice.length=0;choice.push(n);}
+          else if(Math.abs(score-min)<1e-9)choice.push(n);
+        }
+        if(!choice.length)break;
+        const n=choice[randomIndex(choice.length,rng)];
+        chosen.push(n);
+        available.splice(available.indexOf(n),1);
+      }
+      if(chosen.length!==pick)continue;
+      const numbers=sortedUnique(chosen),key=numbers.join(',');
+      if(used.has(key))continue;
+      const pairOverlap=priorSets.map(set=>numbers.filter(n=>set.has(n)).length);
+      const boundary=goal==='quadra'?1:goal==='quina'?3:pick-1;
+      const quality=pairOverlap.reduce((sum,k)=>sum+Math.max(0,k-boundary)**2*500+k*k,0)
+        +numbers.reduce((sum,n)=>sum+(appearance.get(n)||0)*1000,0)+rng()*0.0001;
+      if(quality<bestQuality){bestQuality=quality;best={numbers,extra};}
+    }
+    // Para filtros muito restritivos, amostragem alternativa evita retornar
+    // parcialmente uma solicitação que ainda tem combinações possíveis.
+    if(!best){
+      for(let attempt=0;attempt<300&&!best;attempt++){
+        const numbers=sortedUnique([...required,...uniformSample(pool,freeCount,rng)]);
+        if(!used.has(numbers.join(',')))best={numbers,extra};
+      }
+    }
+    if(!best)throw Error('Não foi possível gerar todos os jogos distintos sob estas restrições. Reduza a quantidade ou os filtros.');
+    selected.push(best);used.add(best.numbers.join(','));
+    for(const n of best.numbers)appearance.set(n,(appearance.get(n)||0)+1);
+  }
+  return selected;
+}
+
+export type GenerateArgs={rule:LotteryRule;count:number;pick:number;budget:number;strategy:Strategy; history:Draw[]; required?:number[];excluded?:number[];extra?:string;seed?:number;poolSize?:number;diversityGoal?:DiversityGoal};
+export function generate(args:GenerateArgs):{tickets:Ticket[];spent:number;remainder:number;note:string;coverage?:CoverageReport}{
   const {rule,strategy}=args;const pick=rule.extra==='columns'?7:args.pick;
   if(!Number.isInteger(args.count)||args.count<1||args.count>100||!Number.isFinite(args.budget)||args.budget<0||args.budget>1000000)throw Error('Quantidade ou orçamento inválido.');
   if(!Number.isInteger(pick)||pick<rule.pick||pick>rule.maxPick)throw Error('Quantidade de dezenas inválida.');
@@ -90,13 +223,18 @@ export function generate(args:GenerateArgs):{tickets:Ticket[];spent:number;remai
   const score=new Map(historyStats.map(x=>[x.number,strategy==='delay'?x.delay:x.frequency]));
   const used=new Set<string>(),tickets:Ticket[]=[];
   const fingerprint=(t:Ticket)=>rule.extra==='columns'?JSON.stringify(t.columns):t.numbers.join(',');
+  if(strategy==='diversity'&&rule.extra!=='columns'){
+    const goal=rule.id==='megasena'&&pick===6?(args.diversityGoal??'quadra'):'sena';
+    const diversified=makeDiverseTickets({rule,pick,limit,required:req,pool:selectedPool,extra:args.extra,goal,rng});
+    return {tickets:diversified,spent:+(diversified.length*unit).toFixed(2),remainder:+(args.budget-diversified.length*unit).toFixed(2),note:`Cobertura otimizada (${goal}). ${diversified.length} jogos únicos, ${new Set(diversified.flatMap(t=>t.numbers)).size} dezenas distintas. Não é previsão do sorteio nem garantia de prêmio.`,coverage:coverageAudit(rule,diversified)};
+  }
   if(strategy==='closure'){
     if(rule.extra==='columns'||rule.extra==='team'||rule.id==='lotomania')throw Error('Fechamento completo indisponível nesta modalidade.');
     const poolSize=args.poolSize??Math.min(pick+1,candidates.length),nCombinations=choose(poolSize,pick);
     if(poolSize<pick||poolSize>pick+3||poolSize>candidates.length||nCombinations>100||limit<nCombinations)throw Error(`Fechamento completo requer ${nCombinations} bilhetes (R$ ${(nCombinations*unit).toFixed(2)}); aumente a quantidade de jogos e o orçamento ou reduza o universo.`);
     const pool=sortedUnique([...req,...uniformSample(selectedPool,poolSize-req.length,rng)]);
     const visit=(start:number,a:number[])=>{if(a.length===pick){tickets.push({numbers:a.slice(),extra:args.extra});return;}for(let i=start;i<=pool.length-(pick-a.length);i++)visit(i+1,[...a,pool[i]]);};visit(0,[]);
-    return {tickets,spent:+(tickets.length*unit).toFixed(2),remainder:+(args.budget-tickets.length*unit).toFixed(2),note:`Fechamento completo de ${poolSize} dezenas: cobre todas as ${tickets.length} combinações simples deste grupo. Prêmio máximo só é assegurado se TODOS os ${rule.draw} números sorteados estiverem entre as dezenas do grupo (e demais condições da modalidade).`};
+    return {tickets,spent:+(tickets.length*unit).toFixed(2),remainder:+(args.budget-tickets.length*unit).toFixed(2),note:`Fechamento completo de ${poolSize} dezenas: cobre todas as ${tickets.length} combinações simples deste grupo. Prêmio máximo só é assegurado se TODOS os ${rule.draw} números sorteados estiverem entre as dezenas do grupo (e demais condições da modalidade).`,coverage:coverageAudit(rule,tickets)};
   }
   for(let i=0;i<limit;i++){
     let best:Ticket|null=null,bestScore=-Infinity;
@@ -131,7 +269,7 @@ export function generate(args:GenerateArgs):{tickets:Ticket[];spent:number;remai
     if(!best)break;
     tickets.push(best);used.add(fingerprint(best));
   }
-  return {tickets,spent:+(tickets.length*unit).toFixed(2),remainder:+(args.budget-tickets.length*unit).toFixed(2),note:strategy==='frequency'||strategy==='delay'?'Heurística histórica sem evidência de maior probabilidade futura.':strategy==='numerology'||strategy==='fibonacci'?'Padrão recreativo sem validação preditiva.':'Todas as combinações simples válidas têm a mesma probabilidade individual.'};
+  return {tickets,spent:+(tickets.length*unit).toFixed(2),remainder:+(args.budget-tickets.length*unit).toFixed(2),note:strategy==='frequency'||strategy==='delay'?'Heurística histórica sem evidência de maior probabilidade futura.':strategy==='numerology'||strategy==='fibonacci'?'Padrão recreativo sem validação preditiva.':'Todas as combinações simples válidas têm a mesma probabilidade individual.',coverage:coverageAudit(rule,tickets)};
 }
 export type BacktestRow={contest:number;date:string;hits:number;extraHit:boolean;cost:number;prize:number|null;baselineHits:number};
 export function backtest(rule:LotteryRule,draws:Draw[],strategy:Strategy,count=50):{rows:BacktestRow[];games:number;investment:number;knownReturn:number|null;compared:number;avgHits:number;baselineAvg:number;note:string}{

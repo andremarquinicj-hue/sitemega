@@ -1,0 +1,2 @@
+import type {MetadataRoute} from 'next';
+export default function manifest():MetadataRoute.Manifest{return {name:'LottoMind AI — Loterias & Estatísticas',short_name:'LottoMind AI',description:'Análise e conferência de loterias brasileiras com responsabilidade estatística.',start_url:'/',display:'standalone',background_color:'#06130d',theme_color:'#0d3925',lang:'pt-BR',icons:[{src:'/icon.svg',sizes:'any',type:'image/svg+xml',purpose:'any'}]};}

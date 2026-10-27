@@ -1,0 +1,17 @@
+sena: 8 jogos, 48 dezenas, 120 quartetos, 48 quintetos, 8 sextetos, quadra+ 1 em 287.20, Sena 1 em 6257982.50
+quadra: 8 jogos, 48 dezenas, 120 quartetos, 48 quintetos, 8 sextetos, quadra+ 1 em 287.20, Sena 1 em 6257982.50
+quina: 8 jogos, 48 dezenas, 120 quartetos, 48 quintetos, 8 sextetos, quadra+ 1 em 287.20, Sena 1 em 6257982.50
+megasena: 3, 8 e 15 apostas válidas, sem apostas repetidas
+quina: 3, 8 e 15 apostas válidas, sem apostas repetidas
+lotofacil: 3, 8 e 15 apostas válidas, sem apostas repetidas
+diadesorte: 3, 8 e 15 apostas válidas, sem apostas repetidas
+duplasena: 3, 8 e 15 apostas válidas, sem apostas repetidas
+lotomania: 3, 8 e 15 apostas válidas, sem apostas repetidas
+timemania: 3, 8 e 15 apostas válidas, sem apostas repetidas
+supersete: 3, 8 e 15 apostas válidas, sem apostas repetidas
+8 jogos anteriores: 45 dezenas, sobreposição máxima 2; relatório não inventa chance de quadra agregada.
+Obrigatórias e exclusões respeitadas; probabilidade agregada não calculada quando eventos se sobrepõem.
+Desempenho megasena: 100 jogos, 2122 ms (neste ambiente)
+Desempenho lotofacil: 100 jogos, 80 ms (neste ambiente)
+Desempenho lotomania: 100 jogos, 407 ms (neste ambiente)
+TOTAL: 144 afirmações de validação aprovadas.
