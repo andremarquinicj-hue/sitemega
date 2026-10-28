@@ -1,4 +1,4 @@
-# LottoMind AI 1.2 — Fortuna Edition (mobile e conferência de prêmios)
+# LottoMind AI 1.3 — Fortuna Edition + Radar Diário (mobile e conferência de prêmios)
 
 Esta atualização inclui **uma identidade verde-esmeralda e dourada**, melhor leitura no celular, navegação inferior móvel, manifesto para adicionar o site à tela inicial, um novo menu **Conferir prêmios**, indicadores de resultados pós-sorteio e conferência automática dos conjuntos salvos cujo concurso associado já foi divulgado.
 
@@ -22,6 +22,38 @@ Para implementação e testes veja [docs/CONFERENCIA_E_VISUAL_1_2.md](docs/CONFE
 
 > **Atualização 26/10/2026 — deploy Vercel:** foi corrigida a sintaxe de `prisma/schema.prisma` que provocava `P1012` no `prisma generate`. Consulte `docs/CORRECAO_VERCEL.md` para atualizar o repositório existente. O build completo ainda depende de validação no ambiente conectado à Vercel.
 
+
+
+## Novo na versão 1.3 — Radar Diário de Estratégias
+
+Na barra lateral e no menu inferior do celular, abra **Radar diário**. A área consulta
+`/api/advisor?lottery=megasena` (ou outra modalidade) e apresenta:
+
+- Último concurso válido, data e procedência dos dados, com status online/cache.
+- **Quentes e frias**: somente frequência retrospectiva nos últimos 30 concursos, com contagem
+  observada e expectativa probabilística. Não são números mais/menos prováveis no próximo sorteio.
+- **Backtesting walk-forward**: uma aposta simples por concurso e estratégia, criada
+  exclusivamente com resultados anteriores ao sorteio avaliado, comparada à média teórica
+  de acertos sob aleatoriedade. Inclui aleatório, equilibrado, frequência, atraso, Fibonacci
+  e numerologia. Precisa de 31+ concursos e reserva 30 para histórico inicial.
+- **Recomendação de cobertura:** máxima diversidade para vários jogos, com foco em evitar
+  combinações duplicadas; não depende de padrão histórico e não garante prêmio.
+- **Orçamento:** quantidade de apostas simples que cabe no valor, gasto, sobra e chance
+  agregada exata somente nas modalidades em que ela pode ser calculada para combinações
+  distintas (como Mega-Sena e Lotofácil).
+- Botões para abrir o gerador com estratégia sugerida ou experimentar hipóteses
+  históricas; nunca realiza apostas ou altera compras automaticamente.
+
+O Radar é recalculado a partir dos últimos resultados disponíveis, inclusive após
+a rotina `/api/sync` configurada na Vercel. A disponibilidade dos dados depende
+da fonte externa e do banco PostgreSQL; cron não substitui a importação histórica.
+Sem banco/histórico completo, testes podem aparecer indisponíveis em vez de criar números fictícios.
+
+**Limitações científicas:** em sorteios independentes, o histórico não aumenta a probabilidade
+de nenhuma dezena. Diferenças entre estratégias em backtests múltiplos podem surgir ao acaso.
+O ranking não representa modelo preditivo validado; não há promessa de vantagem ou retorno.
+
+Detalhes: [`docs/RADAR_DIARIO_1_3.md`](docs/RADAR_DIARIO_1_3.md).
 
 ## Atualização de implantação — 26/10/2026
 
