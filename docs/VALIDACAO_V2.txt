@@ -1,0 +1,14 @@
+PASS C(60,6) correto
+PASS 1 jogo quadra 21790, quina 325, sena 1
+PASS 8 jogos sem dezenas comuns
+PASS 2 jogos com 4 números comuns reduzem a união de quadras
+PASS duplicatas rejeitadas
+PASS números inválidos rejeitados
+PASS bolão R$ 600, 6 participantes, 100 jogos
+PASS bolão R$ 6.000, 10 participantes, 1.000 jogos
+PASS orçamento inválido rejeitado
+PASS 8 jogos com 48 dezenas sem repetições na estratégia diversidade
+PASS 500 jogos únicos auditados sem extrapolação
+PASS previsão sem aposta é conferida sem ser prêmio recebido
+TOTAL: 12 verificações independentes aprovadas.
+Sintaxe TS/TSX: 41 arquivos verificados; 0 erros de parse.

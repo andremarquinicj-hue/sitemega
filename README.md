@@ -1,3 +1,11 @@
+# LottoMind AI 2.0 — Auditoria de apostas, bolões e acompanhamento científico
+
+A atualização **2.0** adiciona o menu **Laboratório 2.0**, com simulação de valores de bolão, contagem exata dos resultados favoráveis de quadra+/quina+/Sena em até 500 apostas simples da Mega-Sena, registro de sugestões que não foram apostadas e verificação automática posterior. Também mostra as dezenas quentes/frias como estatísticas históricas — não como previsões.
+
+**Atenção:** o aplicativo recalcula estatísticas ao consultar resultados, mas **não é um modelo de aprendizado de máquina que melhora a capacidade de previsão a cada sorteio**. A rotina Vercel só persiste resultados se `DATABASE_URL` e `CRON_SECRET` estiverem configurados, e a base histórica deve ser importada. O painel informa os concursos realmente disponíveis. Para detalhes, consulte [`docs/LOTTOMIND_2_0.md`](docs/LOTTOMIND_2_0.md).
+
+---
+
 # LottoMind AI 1.3 — Fortuna Edition + Radar Diário (mobile e conferência de prêmios)
 
 Esta atualização inclui **uma identidade verde-esmeralda e dourada**, melhor leitura no celular, navegação inferior móvel, manifesto para adicionar o site à tela inicial, um novo menu **Conferir prêmios**, indicadores de resultados pós-sorteio e conferência automática dos conjuntos salvos cujo concurso associado já foi divulgado.

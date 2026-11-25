@@ -1,47 +1,16 @@
-# Atualização do LottoMind AI para v1.3 — Radar Diário
+# Como atualizar seu repositório `sitemega` para LottoMind AI 2.0
 
-## Antes de enviar
+1. Baixe e **extraia** o ZIP completo no computador.
+2. Abra `https://github.com/andremarquinicj-hue/sitemega` e, de preferência, crie uma nova branch para poder reverter a atualização.
+3. Envie ou substitua o **conteúdo** do projeto extraído, preservando `app/`, `components/`, `lib/`, `tests/`, `docs/`, `prisma/` e os arquivos da raiz. Não envie uma única cópia do ZIP ao repositório.
+4. Garanta que `scripts/import-history.ts` exista **apenas em `scripts/`**. Se existir `import-history.ts` na raiz, remova essa cópia antiga.
+5. Confirme as alterações (`Commit changes`) e veja o novo deployment na Vercel.
+6. Configure `DATABASE_URL` e `CRON_SECRET` (mínimo 16 caracteres) nas variáveis da Vercel, sem colocar segredos no GitHub. A rotina de atualização não grava dados sem banco PostgreSQL.
+7. Acompanhe o build. Depois teste a aba **Laboratório 2.0** no computador e no celular. Para confirmar atualização automática, verifique os logs do cron e quantidade de concursos no Radar.
+8. Para importar todo o histórico disponível: no ambiente administrativo, rode `npm run import:history -- --game=megasena --limit=10000` com `DATABASE_URL` configurada. Pode demorar e alguns concursos podem exigir nova tentativa caso a fonte os bloqueie.
 
-- Guarde uma cópia do repositório atual.
-- Faça o download do ZIP completo e **extraia** seu conteúdo.
-- Não envie o arquivo ZIP fechado para a raiz do GitHub.
+**Não exclua o seu repositório atual.** Atualize os arquivos com seus caminhos corretos. O código usa dados reais das fontes consultadas, não bilhetes ou resultados fictícios no dashboard.
 
-## Atualizar seu repositório `sitemega`
+**Reversão:** se ocorrer falha de build, volte ao commit anterior na Vercel/GitHub e envie o log do primeiro erro. O pacote não garante que a infraestrutura externa (Caixa, banco ou Vercel) esteja disponível.
 
-1. Abra o GitHub e navegue até a raiz do repositório.
-2. Para atualizar uma versão existente, use GitHub Desktop, o Git local ou
-   **Add file → Upload files**, selecionando o conteúdo extraído e mantendo
-   a mesma hierarquia (`app`, `components`, `lib`, `tests`, `docs`, `prisma`).
-3. Substitua os arquivos existentes quando solicitado. Cuidado: o envio pelo site
-   nem sempre exclui arquivos antigos. Não mantenha cópias de `.ts` na raiz
-   quando a versão correta pertence a `scripts`, `lib` ou outra pasta.
-4. Confirme `Commit changes` na branch conectada à Vercel.
-5. Na Vercel, acompanhe o novo deploy e abra **Radar diário**.
-
-## Alterações desta versão
-
-- `lib/advisor.ts` (novo): estatísticas + comparações sem olhar concursos futuros.
-- `app/api/advisor/route.ts` (novo): API para dados e recomendações do Radar.
-- `components/DailyRadar.tsx` (novo): interface responsiva de tendências,
-  orçamento, testes e botões de estratégias.
-- `components/Dashboard.tsx`: menu e atalhos do Radar.
-- `app/globals.css`: estilos responsivos adicionais.
-- `tests/advisor.test.ts` e `tests/advisor-run.ts` (novos): verificações.
-- `docs/RADAR_DIARIO_1_3.md`, `README.md`, `package.json` (documentação/versão).
-
-## Ambiente Vercel
-
-A rotina de sincronização do banco continua dependendo de `DATABASE_URL` e
-`CRON_SECRET`. O Radar funciona com o último histórico disponível. Para um backtest
-de qualidade, faça a importação histórica descrita no `README.md`.
-
-A nova API `/api/advisor` não tem segredo embutido e não precisa de uma variável
-ambiente adicional; apenas consulta os resultados já existentes.
-
-## Validação e transparência
-
-O núcleo matemático foi checado por TypeScript rigoroso e testes isolados com
-concursos sintéticos (identificados nos testes). Não foi possível executar
-`npm install`, `npm test` e o build completo neste ambiente. Use os logs de
-Vercel para confirmar a publicação. Não anuncie lucros ou chances especiais
-baseadas em frequências passadas.
+**Observação:** a simulação de bolão não é uma compra de apostas; cada participante deve receber comprovante de cota registrado nos canais oficiais da Caixa quando for apostar de verdade.
