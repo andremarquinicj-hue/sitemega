@@ -1,3 +1,15 @@
+# LottoMind AI 2.0.1 — Histórico completo no Neon (25/11/2026)
+
+**Esta atualização implementa a análise do histórico persistido no servidor.** O aplicativo lê por paginação até 10.000 concursos por modalidade (incluindo os 1.266 da Mega-Sena e 956 da Lotofácil registrados nos seus últimos prints, caso ainda estejam no Neon), sem enviar o histórico inteiro para o navegador. O relatório diferencia as janelas de 10, 30, 50, 100, 200, 500 e **todo o histórico disponível**. O Radar usa até **300 concursos fora do treinamento**, após pelo menos **90 concursos de treinamento**. O backtesting específico pode usar até **500 concursos finais**; gerador histórico e Laboratório 2.0 também consultam o banco completo do servidor.
+
+**Importante:** não significa que todos os sorteios históricos desde o concurso 1 foram importados; o painel mostra o primeiro, o último e as lacunas **dentro do intervalo disponível**. Se a conexão com Neon falhar, os indicadores identificam uma amostra limitada, sem inventar dados. Janelas, treinamentos e comparações são descritivos; não existe previsão comprovada de dezenas futuras. Não há novo esquema PostgreSQL nem migração nesta versão.
+
+Para usar veja **[`docs/ANALISE_HISTORICO_COMPLETO_2_0_1.md`](docs/ANALISE_HISTORICO_COMPLETO_2_0_1.md)** e **[`ATUALIZAR_GITHUB.md`](ATUALIZAR_GITHUB.md)**.
+
+**Testes desta entrega:** verificação sintática de 47 arquivos TS/TSX, tipagem do núcleo matemático e execução independente do núcleo para 1.266 e 956 concursos simulados, Radar em 300 rodadas e backtest em 500. **Ainda não foi possível executar `npm test`, `npm run lint` completo ou `npm run build` com Next.js real neste ambiente**, porque a instalação das dependências pelo registry falhou. Faça essas verificações antes do deploy e mantenha atenção às vulnerabilidades do npm audit da versão anterior.
+
+---
+
 # LottoMind AI 2.0 — Auditoria de apostas, bolões e acompanhamento científico
 
 A atualização **2.0** adiciona o menu **Laboratório 2.0**, com simulação de valores de bolão, contagem exata dos resultados favoráveis de quadra+/quina+/Sena em até 500 apostas simples da Mega-Sena, registro de sugestões que não foram apostadas e verificação automática posterior. Também mostra as dezenas quentes/frias como estatísticas históricas — não como previsões.

@@ -28,10 +28,10 @@ describe('Radar Diário de estratégias',()=>{
     expect(r.hot[0].number).toBe(1);
     expect(r.hot[0].appearances).toBe(30);
     expect(r.hot[0].expected).toBe(3);
-    expect(r.testedDraws).toBe(10);
+    expect(r.testedDraws).toBe(0);
   });
-  it('usa walk-forward e avalia somente concursos com pelo menos 30 antecedentes',()=>{
-    const r=buildRadar(makeDraws(RULES.lotofacil,90),RULES.lotofacil);
+  it('usa walk-forward e avalia somente concursos com pelo menos 90 antecedentes',()=>{
+    const r=buildRadar(makeDraws(RULES.lotofacil,150),RULES.lotofacil);
     expect(r.strategyEvidence).toHaveLength(6);
     expect(r.strategyEvidence.every(x=>x.evaluated===60)).toBe(true);
     expect(r.strategyEvidence.every(x=>x.expectedHits===9)).toBe(true);

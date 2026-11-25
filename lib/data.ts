@@ -1,5 +1,5 @@
 import {fetchCaixa,fetchMegaHistory} from './caixa';
-import {db,readDb,upsertDraw} from './db';
+import {db,readDb,readDbHistory,upsertDraw} from './db';
 import {Draw,LotteryKey} from './rules';
 async function fetchRecent(lottery:LotteryKey,last:number,count:number):Promise<Draw[]>{
   if(lottery==='megasena'){
@@ -35,4 +35,33 @@ export async function getResults(lottery:LotteryKey,limit=60):Promise<{draws:Dra
   draws.sort((a,b)=>b.contest-a.contest);
   const isOlder=!!latest&&draws.length>0&&latest.contest<draws[0].contest;
   return {draws:draws.slice(0,limit),status:latest&&!isOlder?'online':draws.length?'cached':'unavailable',error:error||dbError||(isOlder?'Fonte alternativa atrás do último concurso armazenado':undefined),persistent:!!db()&&!dbError,lastSync:draws.length?draws[0].fetchedAt:undefined};
+}
+
+export type AnalysisHistory = Awaited<ReturnType<typeof getResults>> & {
+  origin:'postgresql'|'limited-fallback'; completeScan:boolean;
+};
+/** Loads all locally saved contests for server-side analyses. The already
+ * existing results endpoint stays small for mobile users. When DB is down or
+ * unconfigured, mark the sample as limited instead of claiming full history.
+ */
+export async function getAnalysisHistory(lottery:LotteryKey):Promise<AnalysisHistory>{
+  if(!db()){
+    const limited=await getResults(lottery,200);
+    return {...limited,origin:'limited-fallback',completeScan:false};
+  }
+  // Also attempts to persist the newest draw when the source is accessible.
+  const newest=await getResults(lottery,1);
+  try{
+    const full=await readDbHistory(lottery);
+    const map=new Map<number,Draw>();
+    for(const item of [...full,...newest.draws])map.set(item.contest,item);
+    const draws=[...map.values()].sort((a,b)=>b.contest-a.contest);
+    return {draws,status:newest.status==='online'?'online':draws.length?'cached':'unavailable',
+      error:newest.error,persistent:true,lastSync:draws[0]?.fetchedAt,
+      origin:'postgresql',completeScan:full.length<10000};
+  }catch(e){
+    const limited=await getResults(lottery,200);
+    return {...limited,error:[newest.error,e instanceof Error?e.message:String(e)].filter(Boolean).join(' | '),
+      origin:'limited-fallback',completeScan:false};
+  }
 }

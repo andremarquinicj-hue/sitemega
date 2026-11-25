@@ -1,16 +1,29 @@
-# Como atualizar seu repositório `sitemega` para LottoMind AI 2.0
+# Atualizar `sitemega` para LottoMind AI 2.0.1 — Histórico completo
 
-1. Baixe e **extraia** o ZIP completo no computador.
-2. Abra `https://github.com/andremarquinicj-hue/sitemega` e, de preferência, crie uma nova branch para poder reverter a atualização.
-3. Envie ou substitua o **conteúdo** do projeto extraído, preservando `app/`, `components/`, `lib/`, `tests/`, `docs/`, `prisma/` e os arquivos da raiz. Não envie uma única cópia do ZIP ao repositório.
-4. Garanta que `scripts/import-history.ts` exista **apenas em `scripts/`**. Se existir `import-history.ts` na raiz, remova essa cópia antiga.
-5. Confirme as alterações (`Commit changes`) e veja o novo deployment na Vercel.
-6. Configure `DATABASE_URL` e `CRON_SECRET` (mínimo 16 caracteres) nas variáveis da Vercel, sem colocar segredos no GitHub. A rotina de atualização não grava dados sem banco PostgreSQL.
-7. Acompanhe o build. Depois teste a aba **Laboratório 2.0** no computador e no celular. Para confirmar atualização automática, verifique os logs do cron e quantidade de concursos no Radar.
-8. Para importar todo o histórico disponível: no ambiente administrativo, rode `npm run import:history -- --game=megasena --limit=10000` com `DATABASE_URL` configurada. Pode demorar e alguns concursos podem exigir nova tentativa caso a fonte os bloqueie.
+1. Faça backup do seu projeto atual. **Não exclua o banco Neon nem o repositório.**
+2. Baixe `LottoMind_AI_2_0_1_Historico_Completo.zip` (projeto inteiro) ou `LottoMind_AI_2_0_1_Somente_Atualizacao.zip` (arquivos modificados).
+3. No GitHub [`andremarquinicj-hue/sitemega`](https://github.com/andremarquinicj-hue/sitemega), de preferência crie uma branch para testar. Envie os **arquivos extraídos**, mantendo os caminhos `app/`, `lib/`, `components/`, `scripts/`, `tests/` e `docs/`. Não carregue somente o ZIP.
+4. **Não envie seu `.env`, senhas nem `node_modules`.** A variável `DATABASE_URL` do Neon já está na Vercel; preserve o valor e `CRON_SECRET`. Não precisa recriar o banco, nem aplicar migrações nesta atualização.
+5. O pacote completo já inclui o `scripts/import-history.ts` resiliente usado na correção de P1017/P1001. Se sua cópia local tiver personalizações adicionais, compare antes de substituir esse arquivo.
+6. Execute localmente, ou confirme nos logs de build da Vercel:
 
-**Não exclua o seu repositório atual.** Atualize os arquivos com seus caminhos corretos. O código usa dados reais das fontes consultadas, não bilhetes ou resultados fictícios no dashboard.
+   ```powershell
+   npm.cmd install
+   npx.cmd prisma generate
+   npm.cmd run lint
+   npm.cmd test
+   npm.cmd run build
+   ```
 
-**Reversão:** se ocorrer falha de build, volte ao commit anterior na Vercel/GitHub e envie o log do primeiro erro. O pacote não garante que a infraestrutura externa (Caixa, banco ou Vercel) esteja disponível.
+   Se o PowerShell bloquear `npm.ps1`, use `npm.cmd` como acima. **Não use `npm audit fix --force`** sem avaliar as mudanças incompatíveis; faça auditoria de dependências antes de abrir ao público.
+7. Faça commit das alterações, espere um novo deploy e teste os endpoints (sem expor segredos):
 
-**Observação:** a simulação de bolão não é uma compra de apostas; cada participante deve receber comprovante de cota registrado nos canais oficiais da Caixa quando for apostar de verdade.
+   - `/api/statistics?lottery=megasena` → `report.historicalDraws`, `windows.all.observed`, `windows["500"].observed`.
+   - `/api/statistics?lottery=lotofacil` → mesma verificação.
+   - `/api/advisor?lottery=megasena` → `radar.observations` e `radar.testedDraws`.
+   - `/api/lab?lottery=megasena` → `history.count` é o total disponível; `draws` retorna **até 500** para a interface.
+8. Na aba **Análise estatística**, escolha `Todo histórico`. Confira primeiro e último concurso, lacunas e origem `PostgreSQL Neon`. Na aba **Backtesting**, pode testar até 500 concursos. Se aparecer `limited-fallback`, o banco não estava acessível; não interprete a amostra como completa.
+
+**Observação importante:** o código já utiliza o histórico depois da atualização; isso **não significa que o site publicado esteja atualizado antes de fazer deploy**. A aplicação não tem capacidade de prever um sorteio justo: estratégias históricas são heurísticas sem vantagem demonstrada.
+
+**Reversão:** caso falhe a compilação, volte ao commit anterior do GitHub/Vercel e preserve os dados do banco. Consulte `docs/ANALISE_HISTORICO_COMPLETO_2_0_1.md`.

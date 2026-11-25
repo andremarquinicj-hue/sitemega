@@ -1,5 +1,6 @@
 import {Draw, LotteryRule, Strategy, STRATEGIES, months} from './rules';
-import {choose, countHits, generate, price} from './math';
+import {choose, countHits, generate, price, range, seeded, uniformSample} from './math';
+import {validDraws} from './statistics';
 
 /**
  * Radar estatístico auditável. "Quente"/"frio" descreve contagens passadas,
@@ -10,7 +11,7 @@ export type TemperatureRow = {
 };
 export type StrategyEvidence = {
   strategy:Strategy; label:string; category:string; evaluated:number;
-  meanHits:number; expectedHits:number; difference:number;
+  meanHits:number; expectedHits:number; baselineMeanHits:number; difference:number;
   uncertainty95:number; z:number; interpretation:string;
 };
 export type RadarReport = {
@@ -24,18 +25,6 @@ export type RadarReport = {
   testedDraws:number; minimumTraining:number;
   cautions:string[];
 };
-
-function validHistory(draws:Draw[],rule:LotteryRule):Draw[]{
-  const unique=new Map<number,Draw>();
-  for(const d of draws){
-    if(d.lottery!==rule.id||!Number.isInteger(d.contest)||d.contest<1||
-      !Array.isArray(d.numbers)||d.numbers.length!==rule.draw||
-      d.numbers.some(n=>!Number.isInteger(n)||n<rule.min||n>rule.max)||
-      (rule.extra!=='columns'&&new Set(d.numbers).size!==rule.draw))continue;
-    if(!unique.has(d.contest))unique.set(d.contest,d);
-  }
-  return [...unique.values()].sort((a,b)=>a.contest-b.contest);
-}
 
 function numberRanking(history:Draw[],rule:LotteryRule){
   const window=Math.min(30,history.length);
@@ -64,8 +53,9 @@ function numberRanking(history:Draw[],rule:LotteryRule){
  * Multiple strategy searches and short samples can produce false positives.
  */
 function evaluate(history:Draw[],rule:LotteryRule):StrategyEvidence[]{
-  if(history.length<31||rule.extra==='columns')return [];
-  const first=Math.max(30,history.length-60);
+  const trainingMinimum=90;
+  if(history.length<=trainingMinimum||rule.extra==='columns')return [];
+  const first=Math.max(trainingMinimum,history.length-300);
   const n=history.length-first;
   if(n<1)return [];
   const universe=rule.max-rule.min+1;
@@ -75,6 +65,18 @@ function evaluate(history:Draw[],rule:LotteryRule):StrategyEvidence[]{
   const uncertainty95=1.96*Math.sqrt(variance/n);
   const strategies:Strategy[]=['random','balanced','frequency','delay','fibonacci','numerology'];
   const results:StrategyEvidence[]=[];
+  // The same random baseline of five independent tickets per held-out draw
+  // is used for every strategy, with equal cost and no peeking into the draw.
+  const universeNumbers=range(rule);
+  let baselineTotal=0;
+  for(let i=first;i<history.length;i++){
+    const target=history[i];
+    for(let rep=0;rep<5;rep++){
+      const baseline=uniformSample(universeNumbers,rule.pick,seeded(95021+target.contest*101+rep*313));
+      baselineTotal+=baseline.filter(number=>target.numbers.includes(number)).length;
+    }
+  }
+  const baselineMeanHits=baselineTotal/(n*5);
   for(let s=0;s<strategies.length;s++){
     const strategy=strategies[s];let sum=0,success=0;
     for(let i=first;i<history.length;i++){
@@ -94,22 +96,22 @@ function evaluate(history:Draw[],rule:LotteryRule):StrategyEvidence[]{
     const z=difference/Math.sqrt(variance/n);
     const metadata=STRATEGIES.find(v=>v.id===strategy)!;
     results.push({strategy,label:metadata.label,category:metadata.category,evaluated:n,
-      meanHits:+meanHits.toFixed(3),expectedHits:+expectedHits.toFixed(3),
+      meanHits:+meanHits.toFixed(3),expectedHits:+expectedHits.toFixed(3),baselineMeanHits:+baselineMeanHits.toFixed(3),
       difference:+difference.toFixed(3),uncertainty95:+uncertainty95.toFixed(3),z:+z.toFixed(2),
-      interpretation:n<50?'Amostra curta; diferença inconclusiva.':Math.abs(z)<2.64?'Compatível com flutuações aleatórias nesta comparação.':'Desvio exploratório; não é prova de vantagem futura.'});
+      interpretation:n<100?'Amostra curta; diferença inconclusiva.':Math.abs(z)<2.64?'Compatível com flutuações aleatórias nesta comparação.':'Desvio exploratório após correção conservadora por seis hipóteses; exige nova validação prospectiva.'});
   }
   return results.sort((a,b)=>b.meanHits-a.meanHits);
 }
 
 export function buildRadar(draws:Draw[],rule:LotteryRule):RadarReport{
-  const history=validHistory(draws,rule);
+  const history=validDraws(draws,rule).reverse();
   const last=history.at(-1);
   const {window,hot,cold}=numberRanking(history,rule);
   const evidence=evaluate(history,rule);
   const comparisons=history.length>1?history.at(-2):null;
   const repeatLast=last&&comparisons&&rule.extra!=='columns'?last.numbers.filter(n=>comparisons.numbers.includes(n)).length:null;
   const expectedRepeats=rule.extra==='columns'?null:rule.draw*rule.draw/(rule.max-rule.min+1);
-  const limited=history.length<90||evidence.length===0;
+  const limited=history.length<150||evidence.length===0;
   const recommendation:Strategy='diversity';
   return {
     lottery:rule.id,analyzedContest:last?.contest??null,contestDate:last?.date??null,
@@ -120,7 +122,7 @@ export function buildRadar(draws:Draw[],rule:LotteryRule):RadarReport{
     recommendationReason:'Para um orçamento fixo, prioriza combinações distintas e reduz sobreposições; não depende de supostos números mais prováveis. Para apenas uma aposta, Aleatório uniforme é igualmente adequado.',
     sampleStatus:history.length===0?'unavailable':limited?'limited':'adequate',
     repeatLast,expectedRepeats:expectedRepeats===null?null:+expectedRepeats.toFixed(2),
-    testedDraws:evidence[0]?.evaluated??0,minimumTraining:30,
+    testedDraws:evidence[0]?.evaluated??0,minimumTraining:90,
     cautions:[
       'Dezenas quentes/frias são classificadas por frequência nos resultados PASSADOS; cada dezena conserva a probabilidade teórica no próximo sorteio equilibrado.',
       'O ranking de acertos no backtest não significa vantagem preditiva. Comparar muitas estratégias eleva o risco de encontrar padrões por acaso.',

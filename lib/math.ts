@@ -274,8 +274,8 @@ export function generate(args:GenerateArgs):{tickets:Ticket[];spent:number;remai
 export type BacktestRow={contest:number;date:string;hits:number;extraHit:boolean;cost:number;prize:number|null;baselineHits:number};
 export function backtest(rule:LotteryRule,draws:Draw[],strategy:Strategy,count=50):{rows:BacktestRow[];games:number;investment:number;knownReturn:number|null;compared:number;avgHits:number;baselineAvg:number;note:string}{
   if(strategy==='closure')throw Error('Backtesting de fechamento completo não disponível.');
-  const ordered=[...draws].sort((a,b)=>a.contest-b.contest); const start=Math.max(15,ordered.length-count);
-  if(ordered.length-start<1)throw Error('Histórico insuficiente: são necessários pelo menos 16 concursos.');
+  const ordered=[...draws].sort((a,b)=>a.contest-b.contest); const start=Math.max(90,ordered.length-count);
+  if(ordered.length-start<1)throw Error('Histórico insuficiente: são necessários pelo menos 91 concursos para teste com 90 de treinamento.');
   let totalCost=0,known=0,unknown=0,mean=0,base=0;const rows:BacktestRow[]=[];
   for(let i=start;i<ordered.length;i++){
     const hist=ordered.slice(0,i),d=ordered[i];
@@ -296,5 +296,5 @@ export function backtest(rule:LotteryRule,draws:Draw[],strategy:Strategy,count=5
     totalCost+=rule.basePrice;mean+=Math.max(hit,second??0);base+=Math.max(bHit,d.secondNumbers?countHits(rule,baseline,d.secondNumbers):0);
     rows.push({contest:d.contest,date:d.date,hits:Math.max(hit,second??0),extraHit:rule.extra==='month'?d.extra===extra:false,cost:rule.basePrice,prize,baselineHits:Math.max(bHit,d.secondNumbers?countHits(rule,baseline,d.secondNumbers):0)});
   }
-  return {rows,games:rows.length,investment:+totalCost.toFixed(2),knownReturn:unknown?null:+known.toFixed(2),compared:rows.length,avgHits:mean/rows.length,baselineAvg:base/rows.length,note:`Teste walk-forward: cada aposta usa somente concursos anteriores. Referência aleatória de mesmo custo e semente reproduzível. ${unknown?'Alguns rateios históricos não estão disponíveis; retorno total omitido.':''} Retorno por mês/time ou apostas múltiplas não é computado neste MVP.`};
+  return {rows,games:rows.length,investment:+totalCost.toFixed(2),knownReturn:unknown?null:+known.toFixed(2),compared:rows.length,avgHits:mean/rows.length,baselineAvg:base/rows.length,note:`Teste walk-forward com 90 concursos iniciais de treinamento: cada aposta usa somente concursos anteriores. Referência aleatória de mesmo custo e semente reproduzível. ${unknown?'Alguns rateios históricos não estão disponíveis; retorno total omitido.':''} Retorno por mês/time ou apostas múltiplas não é computado neste MVP.`};
 }
